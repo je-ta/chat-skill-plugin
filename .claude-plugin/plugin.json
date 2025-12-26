@@ -1,0 +1,9 @@
+{
+  "name": "chat-skill",
+  "description": "知らない人とランダムにチャットするスキル",
+  "version": "1.0.0",
+  "author": {
+    "name": "IkedaTest1212"
+  },
+  "repository": "https://github.com/IkedaTest1212/chat-skill-plugin"
+}

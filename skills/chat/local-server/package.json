@@ -1,0 +1,12 @@
+{
+  "name": "chat-skill-local-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "werift": "^0.22.0",
+    "ws": "^8.18.0"
+  }
+}
