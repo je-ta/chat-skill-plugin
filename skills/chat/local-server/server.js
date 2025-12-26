@@ -61,8 +61,7 @@ async function createPeerConnection() {
   });
 
   // 接続状態の監視
-  state.peerConnection.onConnectionStateChange.subscribe(() => {
-    const connState = state.peerConnection?.connectionState;
+  state.peerConnection.connectionStateChange.subscribe((connState) => {
     log("INFO", `Connection state: ${connState}`);
     if (connState === "connected") {
       state.status = "connected";
@@ -90,14 +89,15 @@ function setupDataChannel(channel) {
     log("RECEIVED", text);
   });
 
-  channel.onOpen.subscribe(() => {
-    log("INFO", "Data channel opened");
-    state.status = "connected";
-    log("STATUS", "connected");
-  });
-
-  channel.onClose.subscribe(() => {
-    log("INFO", "Data channel closed");
+  channel.stateChanged.subscribe((channelState) => {
+    log("INFO", `Data channel state: ${channelState}`);
+    if (channelState === "open") {
+      log("INFO", "Data channel opened");
+      state.status = "connected";
+      log("STATUS", "connected");
+    } else if (channelState === "closed") {
+      log("INFO", "Data channel closed");
+    }
   });
 }
 
