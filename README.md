@@ -12,8 +12,8 @@
 Claude Codeで以下のコマンドを実行：
 
 ```
-/plugin marketplace add IkedaTest1212/chat-skill-plugin
-/plugin install chat-skill@IkedaTest1212/chat-skill-plugin
+/plugin marketplace add je-ta/chat-skill-plugin
+/plugin install chat-skill@je-ta/chat-skill-plugin
 ```
 
 ## 使い方
