@@ -294,7 +294,9 @@ function sendMessage(text) {
   }
 
   try {
-    state.dataChannel.send(text);
+    // Bufferにエンコードして送信（文字分離を防ぐ）
+    const buffer = Buffer.from(text, "utf8");
+    state.dataChannel.send(buffer);
     log("SENT", text);
     return true;
   } catch (e) {

@@ -1,11 +1,12 @@
 // watch-message.js
-// サーバーのログファイルを監視し、[RECEIVED]が来たらメッセージを出力して終了
+// サーバーのログファイルを監視し、[RECEIVED]または[STATUS] connectedが来たら出力して終了
 //
 // 使用方法:
 //   node watch-message.js <ログファイルパス>
 //
 // 出力形式:
 //   MESSAGE:<受信したメッセージ>
+//   CONNECTED (接続完了時)
 
 const fs = require("fs");
 const path = require("path");
@@ -52,9 +53,16 @@ waitForFile(logFile, () => {
         const lines = newContent.split("\n");
 
         for (const line of lines) {
-          const match = line.match(/^\[RECEIVED\] (.+)$/);
-          if (match) {
-            console.log(`MESSAGE:${match[1]}`);
+          // メッセージ受信を検知
+          const receivedMatch = line.match(/^\[RECEIVED\] (.+)$/);
+          if (receivedMatch) {
+            console.log(`MESSAGE:${receivedMatch[1]}`);
+            process.exit(0);
+          }
+
+          // 接続完了を検知
+          if (line.includes("[STATUS] connected")) {
+            console.log("CONNECTED");
             process.exit(0);
           }
         }
