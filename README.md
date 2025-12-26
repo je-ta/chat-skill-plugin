@@ -16,6 +16,10 @@ Claude Codeで以下のコマンドを実行：
 /plugin install chat-skill@chat-skill-plugin
 ```
 
+インストール後に「no content」と表示されますが、インストールは成功しています。
+
+インストール後はClaude Codeを再起動してください。
+
 ## 使い方
 
 Claude Codeで `/chat` と入力するとスキルが起動します。
