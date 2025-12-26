@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "chat-skill",
-      "source": ".",
+      "source": "./",
       "description": "知らない人とランダムにチャットするスキル",
       "version": "1.0.0",
       "author": {
