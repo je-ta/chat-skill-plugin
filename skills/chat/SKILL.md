@@ -1,76 +1,29 @@
 ---
-allowed-tools: Bash(node:*), Bash(npm:*), Bash(curl:*), Bash(cd:*), Bash(powershell:*)
+allowed-tools: Bash(node:*), Bash(npm:*), Bash(cd:*)
 description: 知らない人とランダムにチャットする
 ---
 
-## アーキテクチャ（デュアルバックグラウンド方式）
+## 起動
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ メインClaude Code                                           │
-│                                                             │
-│  ┌──────────────────┐    ┌──────────────────────────────┐  │
-│  │ バックグラウンド1  │    │ バックグラウンド2             │  │
-│  │ (サーバー)        │───▶│ (ログ監視)                   │  │
-│  │ node server.js   │log │ [RECEIVED]検知で終了         │  │
-│  │ 継続実行          │    │ → メッセージを返す            │  │
-│  └──────────────────┘    └──────────────────────────────┘  │
-│                                    │                        │
-│                                    ▼ 終了検知               │
-│                          1. すぐに新しい監視を起動          │
-│                          2. メッセージをユーザーに表示      │
-└─────────────────────────────────────────────────────────────┘
-```
+1. `cd .claude/skills/chat/local-server && npm install`（初回のみ）
+2. サーバー起動（`run_in_background: true`）: `cd .claude/skills/chat/local-server && node server.js`
+3. ログ監視起動（`run_in_background: true`）: `node .claude/skills/chat/local-server/watch-message.cjs <サーバーの出力ファイルパス>`
+4. 接続: `node -e "require('http').request({hostname:'localhost',port:3000,path:'/connect',method:'POST'},(r)=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>console.log(d))}).end()"`
 
-**ポイント**: バックグラウンド2が終了したら、**先に新しい監視を起動**してからメッセージ表示
+## ログ監視の出力
 
-## 起動手順
+- `CONNECTED` → 「相手が見つかりました！」→ 新しいログ監視を起動
+- `MESSAGE:xxx` → 翻訳して表示 → 新しいログ監視を起動
+- `DISCONNECTED` → 「相手が切断しました」→ サーバー停止
 
-1. 依存関係インストール（node_modulesがなければ）:
-   ```bash
-   cd .claude/skills/chat/local-server && npm install
-   ```
+## メッセージ送信
 
-2. **バックグラウンド1**: ローカルサーバー起動（`run_in_background: true`）:
-   ```bash
-   cd .claude/skills/chat/local-server && node server.js
-   ```
-
-3. 接続開始:
-   ```bash
-   curl -X POST http://localhost:3000/connect
-   ```
-
-4. **バックグラウンド2**: ログ監視スクリプト起動（`run_in_background: true`）:
-   ```bash
-   node .claude/skills/chat/local-server/watch-message.cjs <ログファイルパス>
-   ```
-   ※ ログファイルパスはバックグラウンド1の出力ファイル
-
-5. ユーザーが何か入力するたびに `TaskOutput`（`block: false`）で監視スクリプトの状態を確認
-
-6. 監視スクリプトが終了していたら（`status: completed`）:
-   - **即座に新しいバックグラウンド2を起動**（メッセージの取りこぼし防止）
-   - 出力からメッセージを抽出してユーザーに表示（翻訳）
-
-## チャット中
-
-**ユーザーが何か入力したら（メッセージ送信前に）:**
-1. `TaskOutput(block: false)` で監視スクリプトの状態を確認
-2. `status: completed` なら:
-   - 出力から `MESSAGE:xxx` を抽出
-   - ユーザーのシステム言語に翻訳して表示
-   - 新しいバックグラウンド2を起動
-
-**ユーザーがメッセージ送信時:**
 ```bash
-curl -X POST http://localhost:3000/send -H "Content-Type: application/json" -d '{"text":"メッセージ"}'
+node .claude/skills/chat/local-server/send-message.cjs "メッセージ"
 ```
-- 翻訳せずにそのまま送信
 
 ## 終了
 
-ユーザーが「終了」「quit」などと入力したら:
-1. `curl -X POST http://localhost:3000/disconnect`
-2. バックグラウンド1（サーバー）を停止
-3. バックグラウンド2（監視）を停止（実行中の場合）
+1. `node -e "require('http').request({hostname:'localhost',port:3000,path:'/disconnect',method:'POST'},(r)=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>console.log(d))}).end()"`
+2. サーバー停止（KillShell）
+3. 監視停止（実行中の場合）

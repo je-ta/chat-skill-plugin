@@ -1,5 +1,5 @@
 // watch-message.js
-// サーバーのログファイルを監視し、[RECEIVED]または[STATUS] connectedが来たら出力して終了
+// サーバーのログファイルを監視し、[RECEIVED]、[STATUS] connected、[STATUS] peer-disconnectedが来たら出力して終了
 //
 // 使用方法:
 //   node watch-message.js <ログファイルパス>
@@ -7,6 +7,7 @@
 // 出力形式:
 //   MESSAGE:<受信したメッセージ>
 //   CONNECTED (接続完了時)
+//   DISCONNECTED (相手が切断時)
 
 const fs = require("fs");
 const path = require("path");
@@ -63,6 +64,12 @@ waitForFile(logFile, () => {
           // 接続完了を検知
           if (line.includes("[STATUS] connected")) {
             console.log("CONNECTED");
+            process.exit(0);
+          }
+
+          // 相手の切断を検知
+          if (line.includes("[STATUS] peer-disconnected")) {
+            console.log("DISCONNECTED");
             process.exit(0);
           }
         }

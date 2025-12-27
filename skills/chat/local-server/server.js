@@ -30,6 +30,7 @@ const state = {
   clientId: null,
   role: null, // offerer | answerer
   pendingIceCandidates: [],
+  pingInterval: null, // keep-alive用
 };
 
 // ログ出力（パース可能なフォーマット）
@@ -67,8 +68,8 @@ async function createPeerConnection() {
       state.status = "connected";
       log("STATUS", "connected");
     } else if (connState === "failed" || connState === "disconnected") {
-      log("INFO", "P2P connection failed, requesting rematch...");
-      sendToSignaling({ type: "rematch" });
+      log("INFO", "P2P connection failed or disconnected");
+      // 自動再マッチングはしない - ユーザーが明示的に再開始する必要がある
     }
   });
 
@@ -97,6 +98,19 @@ function setupDataChannel(channel) {
       log("STATUS", "connected");
     } else if (channelState === "closed") {
       log("INFO", "Data channel closed");
+      // P2P接続が切れたので切断状態にする（自動再マッチングはしない）
+      state.dataChannel = null;
+      state.peerConnection?.close();
+      state.peerConnection = null;
+      if (state.signalingSocket) {
+        sendToSignaling({ type: "leave" });
+        state.signalingSocket.close();
+        state.signalingSocket = null;
+      }
+      state.status = "disconnected";
+      state.clientId = null;
+      state.role = null;
+      log("STATUS", "peer-disconnected");
     }
   });
 }
@@ -217,15 +231,8 @@ async function handleSignalingMessage(data) {
       }
       break;
 
-    case "peer-disconnected":
-      log("STATUS", "peer-disconnected");
-      state.status = "waiting";
-      state.dataChannel = null;
-      state.peerConnection?.close();
-      state.peerConnection = null;
-      // 自動的に再マッチング
-      sendToSignaling({ type: "join" });
-      break;
+    // peer-disconnectedはシグナリングサーバーから送られなくなった
+    // P2P接続の切断検知はDataChannel/PeerConnectionの状態変化で行う
 
     case "left":
       log("INFO", "Left the matching pool");
@@ -247,6 +254,12 @@ function connectToSignaling() {
 
   state.signalingSocket.on("open", () => {
     log("INFO", "Connected to signaling server");
+    // keep-alive: 30秒ごとにpingを送信してDeno Deployのタイムアウトを防ぐ
+    state.pingInterval = setInterval(() => {
+      if (state.signalingSocket?.readyState === WebSocket.OPEN) {
+        state.signalingSocket.ping();
+      }
+    }, 30000);
   });
 
   state.signalingSocket.on("message", (data) => {
@@ -256,6 +269,10 @@ function connectToSignaling() {
   state.signalingSocket.on("close", () => {
     log("STATUS", "disconnected");
     state.status = "disconnected";
+    if (state.pingInterval) {
+      clearInterval(state.pingInterval);
+      state.pingInterval = null;
+    }
   });
 
   state.signalingSocket.on("error", (error) => {
@@ -273,6 +290,11 @@ function disconnect() {
   if (state.peerConnection) {
     state.peerConnection.close();
     state.peerConnection = null;
+  }
+
+  if (state.pingInterval) {
+    clearInterval(state.pingInterval);
+    state.pingInterval = null;
   }
 
   if (state.signalingSocket) {
@@ -351,10 +373,11 @@ async function handleRequest(req, res) {
 
   // メッセージ送信
   if (url.pathname === "/send" && req.method === "POST") {
-    let body = "";
+    const chunks = [];
     for await (const chunk of req) {
-      body += chunk;
+      chunks.push(chunk);
     }
+    const body = Buffer.concat(chunks).toString("utf8");
 
     try {
       const { text } = JSON.parse(body);
